@@ -2,17 +2,16 @@ const express = require('express');
 const pgp = require('pg-promise')();
 const cors = require('cors');
 const wkx = require('wkx');
-const turf = require('@turf/turf');
+const turf = require('turf/turf');
+const elasticsearch = require('@elastic/elasticsearch');
+
+const client = new elasticsearch.Client({ /* Elasticsearch configuration */ });
 
 const app = express();
 const port = 3001;
 
 const db = pgp({
-    user: '',
-    password: '',
-    host: '',
-    port: 5432,
-    database: '',
+
 });
 
 app.use(cors());
@@ -64,14 +63,14 @@ function relevantSuggestions(dbData, userInput) {
 app.get('/api/data', async (req, res) => {
     try {
         const userInput = req.query.query; // Get the query parameter from the client
-        const query = `select name, geom from buildings;`;
+        const query = `select name, geom from buildings where name ilike $1;`;
 
         // Get response from database
-        const data = await db.any(query);
+        const data = await db.any(query, [`${userInput}%`]);
 
         const suggestions = relevantSuggestions(data, userInput);
 
-        res.json(suggestions);
+        res.json(data);
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'An error occurred.' });
